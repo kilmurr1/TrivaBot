@@ -91,7 +91,7 @@ async def quizme(ctx):
 
 async def addpoints(msg):
     print('Applying points')
-    with open('data.csv', 'r') as read_obj:
+    with open('data_'+str(msg.guild.id)+'.csv', 'r') as read_obj:
         # pass the file object to reader() to get the reader object
         csv_reader = reader(read_obj)
         # Pass reader object to list() to get a list of lists
@@ -112,14 +112,14 @@ async def addpoints(msg):
             print("did not find player, adding new row")
             playerList = [msg.author.id,msg.author.name,10]
             list_of_rows.append(playerList)
-        writer = csv.writer(open('data.csv', 'w'))
+        writer = csv.writer(open('data_'+str(msg.guild.id)+'.csv', 'w'))
         writer.writerows(list_of_rows)
         read_obj.close()
 
 
 @bot.command(pass_context=True)
 async def score(ctx):
-    with open('data.csv', 'r') as read_obj:
+    with open('data_'+str(ctx.guild.id)+'.csv', 'r') as read_obj:
         # pass the file object to reader() to get the reader object
         csv_reader = reader(read_obj)
         # Pass reader object to list() to get a list of lists
@@ -152,19 +152,22 @@ async def randomMemberRole(ctx,text):
 spacer = -1
 @bot.event
 async def on_ready():
+    #Check connection to discord, pull guilds
     print(f'{bot.user} has connected to Discord!')
+    connectedguilds = []
     for guild in bot.guilds:
-        if guild.name == GUILD:
-            break
-    print(
+        connectedguilds.append(guild)
+
+    for guild in connectedguilds:
+        print(
         f'{bot.user} is connected to the following guild:\n'
         f'{guild.name}(id: {guild.id})'
     )
 
     members = '\n - '.join([member.name for member in guild.members])
     roles = '\n - '.join([role.name + " " + str(role.id) for role in guild.roles])
-    if path.exists('data.csv')== False:
-        with open('data.csv', mode='w') as data:
+    if path.exists('data_'+str(guild.id)+'.csv')== False:
+        with open('data_'+str(guild.id)+'.csv', mode='w') as data:
             datawriter = csv.writer(data, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             datawriter.writerow(['ID', 'Name', 'Score'])
             print("csv created")
@@ -174,10 +177,6 @@ async def on_ready():
 
 async def spongebobmock(message):
     if message.author.name == '*****':
-        print(spacer)
-        spacer += 1
-        print("Adding spacer")
-        print(spacer)
         a = list(message.content)
         a[2::3] = [x.upper() for x in a[2::3]]
         a[1::2] = [x.lower() for x in a[1::2]]
@@ -192,20 +191,18 @@ async def spongebobmock(message):
 async def messageResponses(message):
     if message.author == bot.user:
         return
-    if 'your mom' in message.content.lower():
-        await message.channel.send('HAHAHA SO FUNNY xd')
-    if 'joe' in message.content.lower():
-        await message.channel.send('JOE MOMMA')
-    if '@everyone' in message.content:
-        await message.channel.send('You are being annoying')
-    if 'trash bot' in message.content:
-        await message.channel.send("That's not very nice, I'm hurt :(")
-
+    messages = ['your mom','joe','@everyone', 'trash bot']
+    response = ['Hahaha, so funny xd', 'JOE MOMMA', 'You are being annoyinng', "That's not very nice, I'm hurt :("]
+    i = -1
+    for item in messages:
+        i += 1
+        if item in message.content.lower():
+            await message.channel.send(response[i])
 
 
 @bot.event
 async def on_message(message):
-    print(">" + message.content)
+    print(message.author.name + ": " + message.content)
     await messageResponses(message)
     await bot.process_commands(message)
 
