@@ -1,10 +1,12 @@
 # bot.py
 import os
+from os import path
 import random
 import time
 import asyncio
 import discord
 import random
+import csv
 from dotenv import load_dotenv
 from discord.ext.commands import Bot
 from discord.ext import commands
@@ -46,6 +48,47 @@ async def randomMember(ctx):
         members.append(member)
     await ctx.send(random.choice(members))
 
+
+@bot.command(pass_context=True)
+async def quizme(ctx):
+    #quizme
+    offset = random.randrange(172967)
+    print(offset)
+    f = open('quiz.csv')
+    f.seek(offset)  # go to random position
+    try:
+        f.readline()  # discard - bound to be partial line
+        random_line = f.readline()
+    except:
+        if len(random_line) == 0:  # we have hit the end
+            f.seek(0)
+            random_line = f.readline()
+    print(random_line)
+
+    question, answer = random_line.split("?")
+    answer = answer[1:]
+    answer = answer.rstrip('\n')
+    await ctx.send(question)
+    print("!"+answer.lower()+"!")
+    def check(m):
+        print('checking')
+        if m.author == bot.user:
+            print("Is bot")
+            return False
+        else:
+            print("Is user")
+            return True
+
+    time.sleep(2)
+    msg = await bot.wait_for('message', check=check)
+    print("Message was: " + msg.content)
+    if(msg.content.lower() == answer.lower()):
+        await ctx.channel.send("Correct! +10 points")
+    else:
+        await ctx.channel.send("WRONG! Correct answer is: " + answer.lower())
+    f.close()
+
+
 @bot.command(pass_context=True)
 async def randomMemberRole(ctx,text):
     for guild in bot.guilds:
@@ -76,7 +119,14 @@ async def on_ready():
 
     members = '\n - '.join([member.name for member in guild.members])
     roles = '\n - '.join([role.name + " " + str(role.id) for role in guild.roles])
+    if path.exists('data.csv')== False:
+        with open('data.csv', mode='w') as data:
+            datawriter = csv.writer(data, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            datawriter.writerow(['Name', 'ID', 'Score'])
+            print("csv created")
 
+    else:
+        print('data file already exists')
 
 async def spongebobmock(message):
     if message.author.name == '*****':
@@ -105,15 +155,18 @@ async def messageResponses(message):
     if '@everyone' in message.content:
         await message.channel.send('You are being annoying')
     if 'trash bot' in message.content:
-        await message.channel.send("that's not very nice, I'm hurt :(")
+        await message.channel.send("That's not very nice, I'm hurt :(")
 
 
 
 @bot.event
 async def on_message(message):
-    print(message)
+    print(">" + message.content)
     await messageResponses(message)
     await bot.process_commands(message)
+
+
+
 
 
 
