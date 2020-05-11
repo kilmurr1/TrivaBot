@@ -7,6 +7,7 @@ import asyncio
 import discord
 import random
 import csv
+from csv import reader
 from dotenv import load_dotenv
 from discord.ext.commands import Bot
 from discord.ext import commands
@@ -17,7 +18,6 @@ GUILD = os.getenv('DISCORD_GUILD')
 
 client = discord.Client()
 bot = commands.Bot(command_prefix='$')
-
 
 @bot.command(pass_context=True)
 async def test(ctx):
@@ -64,8 +64,8 @@ async def quizme(ctx):
             f.seek(0)
             random_line = f.readline()
     print(random_line)
-
     question, answer = random_line.split("?")
+    f.close()
     answer = answer[1:]
     answer = answer.rstrip('\n')
     await ctx.send(question)
@@ -78,15 +78,58 @@ async def quizme(ctx):
         else:
             print("Is user")
             return True
-
     time.sleep(2)
     msg = await bot.wait_for('message', check=check)
     print("Message was: " + msg.content)
     if(msg.content.lower() == answer.lower()):
         await ctx.channel.send("Correct! +10 points")
+        await addpoints(msg)
     else:
         await ctx.channel.send("WRONG! Correct answer is: " + answer.lower())
-    f.close()
+        # Give player 10 points
+
+
+async def addpoints(msg):
+    print('Applying points')
+    with open('data.csv', 'r') as read_obj:
+        # pass the file object to reader() to get the reader object
+        csv_reader = reader(read_obj)
+        # Pass reader object to list() to get a list of lists
+        list_of_rows = list(csv_reader)
+        print(list_of_rows)
+        playerinlist = False
+        for item in list_of_rows:
+            if item[0] == str(msg.author.id):
+                playerinlist = True
+                print("user found")
+                print("score is: " + item[2])
+                scorestr = item[2].rstrip('\n')
+                score = int(scorestr)
+                score += 10
+                item[2] = str(score)
+                print("score is now: " + item[2])
+        if playerinlist == False:
+            print("did not find player, adding new row")
+            playerList = [msg.author.id,msg.author.name,10]
+            list_of_rows.append(playerList)
+        writer = csv.writer(open('data.csv', 'w'))
+        writer.writerows(list_of_rows)
+        read_obj.close()
+
+
+@bot.command(pass_context=True)
+async def score(ctx):
+    with open('data.csv', 'r') as read_obj:
+        # pass the file object to reader() to get the reader object
+        csv_reader = reader(read_obj)
+        # Pass reader object to list() to get a list of lists
+        list_of_rows = list(csv_reader)
+        list_to_send = ""
+        for line in list_of_rows:
+            name = line[1]
+            score = line[2]
+            list_to_send += name + ": " + str(score) + "\n"
+        await ctx.send(list_to_send)
 
 
 @bot.command(pass_context=True)
@@ -122,7 +165,7 @@ async def on_ready():
     if path.exists('data.csv')== False:
         with open('data.csv', mode='w') as data:
             datawriter = csv.writer(data, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            datawriter.writerow(['Name', 'ID', 'Score'])
+            datawriter.writerow(['ID', 'Name', 'Score'])
             print("csv created")
 
     else:
