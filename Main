@@ -1,0 +1,117 @@
+# bot.py
+import os
+import random
+import time
+import asyncio
+import discord
+import random
+from dotenv import load_dotenv
+from discord.ext.commands import Bot
+from discord.ext import commands
+#edit
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD = os.getenv('DISCORD_GUILD')
+
+client = discord.Client()
+bot = commands.Bot(command_prefix='$')
+
+
+@bot.command(pass_context=True)
+async def test(ctx):
+    await ctx.send('test')
+
+
+@bot.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def whoami(ctx):
+    msg = "You're an admin {}".format(ctx.message.author.mention)
+    await ctx.send(msg)
+
+@bot.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def spam(ctx, *args):
+    i = 0
+    while (i < 20):
+        i += 1
+        await ctx.send(' '.join(args))
+
+@bot.command(pass_context=True)
+async def randomMember(ctx):
+    for guild in bot.guilds:
+        if guild.name == GUILD:
+            break
+    members = []
+    for member in guild.members:
+        members.append(member)
+    await ctx.send(random.choice(members))
+
+@bot.command(pass_context=True)
+async def randomMemberRole(ctx,text):
+    for guild in bot.guilds:
+        if guild.name == GUILD:
+            break
+    members = []
+    for role in guild.roles:
+        if role.name == text:
+            for guild in bot.guilds:
+                for member in guild.members:
+                    if role in member.roles:
+                        members.append(member)
+            break
+    await ctx.send(random.choice(members))
+
+
+spacer = -1
+@bot.event
+async def on_ready():
+    print(f'{bot.user} has connected to Discord!')
+    for guild in bot.guilds:
+        if guild.name == GUILD:
+            break
+    print(
+        f'{bot.user} is connected to the following guild:\n'
+        f'{guild.name}(id: {guild.id})'
+    )
+
+    members = '\n - '.join([member.name for member in guild.members])
+    roles = '\n - '.join([role.name + " " + str(role.id) for role in guild.roles])
+
+
+async def spongebobmock(message):
+    if message.author.name == '*****':
+        print(spacer)
+        spacer += 1
+        print("Adding spacer")
+        print(spacer)
+        a = list(message.content)
+        a[2::3] = [x.upper() for x in a[2::3]]
+        a[1::2] = [x.lower() for x in a[1::2]]
+        s = ''.join(a)
+        await message.channel.send(s)
+        await message.channel.send(file=discord.File('mockingspongebobbb.jpg'))
+
+
+
+
+
+async def messageResponses(message):
+    if 'your mom' in message.content.lower():
+        await message.channel.send('HAHAHA SO FUNNY xd')
+    if 'joe' in message.content.lower():
+        await message.channel.send('JOE MOMMA')
+    if '@everyone' in message.content:
+        await message.channel.send('You are being annoying')
+
+
+@bot.event
+async def on_message(message):
+    print(message)
+    await messageResponses(message)
+    await bot.process_commands(message)
+
+
+
+
+
+bot.run(TOKEN)
