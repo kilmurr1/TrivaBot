@@ -130,6 +130,7 @@ async def score(ctx):
             score = line[2]
             list_to_send += name + ": " + str(score) + "\n"
         await ctx.send(list_to_send)
+        read_obj.close()
 
 
 @bot.command(pass_context=True)
