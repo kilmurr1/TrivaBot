@@ -96,12 +96,17 @@ async def spongebobmock(message):
 
 
 async def messageResponses(message):
+    if message.author == bot.user:
+        return
     if 'your mom' in message.content.lower():
         await message.channel.send('HAHAHA SO FUNNY xd')
     if 'joe' in message.content.lower():
         await message.channel.send('JOE MOMMA')
     if '@everyone' in message.content:
         await message.channel.send('You are being annoying')
+    if 'trash bot' in message.content:
+        await message.channel.send("that's not very nice, I'm hurt :(")
+
 
 
 @bot.event
