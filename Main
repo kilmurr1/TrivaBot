@@ -9,9 +9,11 @@ import random
 import csv
 from csv import reader
 from dotenv import load_dotenv
-from discord.ext.commands import Bot
+from discord.ext.commands import Bot, MissingPermissions
 from discord.ext import commands
-#edit
+from discord.ext.commands import has_permissions
+
+# edit
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
@@ -19,9 +21,15 @@ GUILD = os.getenv('DISCORD_GUILD')
 client = discord.Client()
 bot = commands.Bot(command_prefix='$')
 
+
+# This is a test command, just so the user can verify that the bot is connected properly
 @bot.command(pass_context=True)
 async def test(ctx):
-    await ctx.send('test')
+    await ctx.send('I am connected!')
+
+
+'''This was a command I was using to test the permissions of a member. It checks to see if a user has admin permissions
+   This code will be used for later functions.'''
 
 
 @bot.command(pass_context=True)
@@ -30,29 +38,63 @@ async def whoami(ctx):
     msg = "You're an admin {}".format(ctx.message.author.mention)
     await ctx.send(msg)
 
-@bot.command(pass_context=True)
-@commands.has_permissions(administrator=True)
-async def spam(ctx, *args):
-    i = 0
-    while (i < 20):
-        i += 1
-        await ctx.send(' '.join(args))
+
+@whoami.error
+async def whoami_error(ctx, error):
+    if isinstance(error, MissingPermissions):
+        await ctx.send("Not an admin")
+    else:
+        await ctx.send("Error Occurred")
+
+
+'''Admin only command that allows a message to be "spammed" up to 999 times. 
+   Messages must be formatted as '$spam 000 "message"' The number must be in a 3 digit format'''
+
 
 @bot.command(pass_context=True)
+@commands.has_permissions(administrator=True)
+async def spam(ctx):
+    num = ctx.message.content[5:9].strip
+    numint = int(num)
+    i = 0
+    while (i < numint):
+        await ctx.send(ctx.message.content[9:])
+        i += 1
+
+
+# This command pics a random member of the server, useful for giveaways/selections. DOES NOT INCLUDE BOTS
+@bot.command(pass_context=True)
 async def randomMember(ctx):
+    members = []
+    for member in ctx.guild.members:
+        if member != bot.user:
+            members.append(member)
+    await ctx.send(random.choice(members))
+
+#Get random user with a specific role, formating must be $randomMemberRole "role in quotes"
+@bot.command(pass_context=True)
+async def randomMemberRole(ctx, text):
     for guild in bot.guilds:
         if guild.name == GUILD:
             break
     members = []
-    for member in guild.members:
-        members.append(member)
+    for role in ctx.guild.roles:
+        if role.name == text:
+            for guild in bot.guilds:
+                for member in guild.members:
+                    if role in member.roles:
+                        members.append(member)
+            break
     await ctx.send(random.choice(members))
 
 
+'''There is currently 1628 questions in quiz.csv, this command will ask the user a random question and await an answer. 
+   If the answer is correct the user will get 10 points added to their username in the scoreboard.'''
 @bot.command(pass_context=True)
 async def quizme(ctx):
-    #quizme
-    offset = random.randrange(172967)
+    # Pick a random char in quiz.csv, then copy the question on that line.
+    # https://stackoverflow.com/questions/10819911/read-random-lines-from-huge-csv-file-in-python
+    offset = random.randrange(172906)
     print(offset)
     f = open('quiz.csv')
     f.seek(offset)  # go to random position
@@ -63,18 +105,23 @@ async def quizme(ctx):
         if len(random_line) == 0:  # we have hit the end
             f.seek(0)
             random_line = f.readline()
-    print(random_line)
+
+    # Create the question and answer that bot is looking for.
     question, answer = random_line.split("?")
     f.close()
     answer = answer[1:]
     answer = answer.rstrip('\n')
     answer = answer.strip()
+
+    # Make sure that current question can only be answered by requester
     author = ctx.author
     guild = ctx.guild
+    # Send question to server
     await ctx.send(question)
-    print("!"+answer.lower()+"!")
-    def check(m):
+    print("!" + answer.lower() + "!")
 
+    # Quick check to make sure that user who answers is the same as requester
+    def check(m):
         print('checking')
         if m.author == bot.user:
             print("Is bot")
@@ -87,27 +134,25 @@ async def quizme(ctx):
         else:
             print("different server and author")
             return False
-    time.sleep(2)
+
+    time.sleep(2)  # Weird bug occurring without short wait, bot was reading previous message
     msg = await bot.wait_for('message', check=check)
     print("Message was: " + msg.content)
-    if(msg.content.lower() == answer.lower()):
+    if msg.content.lower() == answer.lower(): # Check to see if message is same as correct answer to question
         await ctx.channel.send("Correct! +10 points")
-        await addpoints(msg)
+        await addpoints(msg) # Call addpoints(), to increase score
     else:
         await ctx.channel.send("WRONG! Correct answer is: " + answer.lower())
-        # Give player 10 points
 
-
+'''This function adds score for each player who answers a question correctly in the quiz game'''
 async def addpoints(msg):
     print('Applying points')
-    with open('data_'+str(msg.guild.id)+'.csv', 'r') as read_obj:
-        # pass the file object to reader() to get the reader object
+    with open('data_' + str(msg.guild.id) + '.csv', 'r') as read_obj: # Open guild data file
         csv_reader = reader(read_obj)
-        # Pass reader object to list() to get a list of lists
         list_of_rows = list(csv_reader)
         print(list_of_rows)
         playerinlist = False
-        for item in list_of_rows:
+        for item in list_of_rows: # Check to see if player already has a score, or a new player must be added
             if item[0] == str(msg.author.id):
                 playerinlist = True
                 print("user found")
@@ -119,21 +164,24 @@ async def addpoints(msg):
                 print("score is now: " + item[2])
         if playerinlist == False:
             print("did not find player, adding new row")
-            playerList = [msg.author.id,msg.author.name,10]
+            playerList = [msg.author.id, msg.author.name, 10]
             list_of_rows.append(playerList)
-        writer = csv.writer(open('data_'+str(msg.guild.id)+'.csv', 'w'))
+        writer = csv.writer(open('data_' + str(msg.guild.id) + '.csv', 'w'))
         writer.writerows(list_of_rows)
         read_obj.close()
 
 
 @bot.command(pass_context=True)
 async def score(ctx):
-    with open('data_'+str(ctx.guild.id)+'.csv', 'r') as read_obj:
+    with open('data_' + str(ctx.guild.id) + '.csv', 'r') as read_obj:
         # pass the file object to reader() to get the reader object
         csv_reader = reader(read_obj)
+        next(csv_reader)
         # Pass reader object to list() to get a list of lists
         list_of_rows = list(csv_reader)
         list_to_send = ""
+        realList =[]
+        max = 0
         for line in list_of_rows:
             name = line[1]
             score = line[2]
@@ -142,26 +190,12 @@ async def score(ctx):
         read_obj.close()
 
 
-@bot.command(pass_context=True)
-async def randomMemberRole(ctx,text):
-    for guild in bot.guilds:
-        if guild.name == GUILD:
-            break
-    members = []
-    for role in guild.roles:
-        if role.name == text:
-            for guild in bot.guilds:
-                for member in guild.members:
-                    if role in member.roles:
-                        members.append(member)
-            break
-    await ctx.send(random.choice(members))
-
-
 spacer = -1
+
+
 @bot.event
 async def on_ready():
-    #Check connection to discord, pull guilds
+    # Check connection to discord, pull guilds
     print(f'{bot.user} has connected to Discord!')
     connectedguilds = []
     for guild in bot.guilds:
@@ -169,14 +203,14 @@ async def on_ready():
 
     for guild in connectedguilds:
         print(
-        f'{bot.user} is connected to the following guild:\n'
-        f'{guild.name}(id: {guild.id})'
+            f'{bot.user} is connected to the following guild:\n'
+            f'{guild.name}(id: {guild.id})'
         )
-
-        members = '\n - '.join([member.name for member in guild.members])
-        roles = '\n - '.join([role.name + " " + str(role.id) for role in guild.roles])
-        if path.exists('data_'+str(guild.id)+'.csv')== False:
-            with open('data_'+str(guild.id)+'.csv', mode='w') as data:
+        # Old single guild code
+        '''members = '\n - '.join([member.name for member in guild.members])
+        roles = '\n - '.join([role.name + " " + str(role.id) for role in guild.roles])'''
+        if path.exists('data_' + str(guild.id) + '.csv') == False: # create data file for new server
+            with open('data_' + str(guild.id) + '.csv', mode='w') as data:
                 datawriter = csv.writer(data, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 datawriter.writerow(['ID', 'Name', 'Score'])
                 print("csv created")
@@ -184,23 +218,13 @@ async def on_ready():
         else:
             print('data file already exists')
 
-async def spongebobmock(message):
-    if message.author.name == '*****':
-        a = list(message.content)
-        a[2::3] = [x.upper() for x in a[2::3]]
-        a[1::2] = [x.lower() for x in a[1::2]]
-        s = ''.join(a)
-        await message.channel.send(s)
-        await message.channel.send(file=discord.File('mockingspongebobbb.jpg'))
 
 
-
-
-
+''' This is just a joke function, whenever a message containg a keyword is sent, the bot will send a reply'''
 async def messageResponses(message):
     if message.author == bot.user:
         return
-    messages = ['your mom','joe','@everyone', 'trash bot']
+    messages = ['your mom', 'joe', '@everyone', 'trash bot']
     response = ['Hahaha, so funny xd', 'JOE MOMMA', 'You are being annoyinng', "That's not very nice, I'm hurt :("]
     i = -1
     for item in messages:
@@ -214,12 +238,6 @@ async def on_message(message):
     print(message.author.name + ": " + message.content)
     await messageResponses(message)
     await bot.process_commands(message)
-
-
-
-
-
-
 
 
 bot.run(TOKEN)
