@@ -1,9 +1,6 @@
-# bot.py
 import os
 from os import path
-import random
 import time
-import asyncio
 import discord
 import random
 import csv
@@ -11,7 +8,6 @@ from csv import reader
 from dotenv import load_dotenv
 from discord.ext.commands import Bot, MissingPermissions
 from discord.ext import commands
-from discord.ext.commands import has_permissions
 
 # edit
 load_dotenv()
@@ -236,7 +232,7 @@ async def messageResponses(message):
 @bot.event
 async def on_message(message):
     print(message.author.name + ": " + message.content)
-    await messageResponses(message)
+    #await messageResponses(message)
     await bot.process_commands(message)
 
 
